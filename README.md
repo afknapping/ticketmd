@@ -9,8 +9,7 @@ Runs in any terminal, including a Claude Code terminal pane.
 
 ## Philosophy
 
-- No database, no server-side source of truth — the `.md` files **are**
-  the data.
+- No database, no server-side source of truth — the `.md` files are the data.
 - One ticket = one file. Editable in any text editor, greppable,
   diffable, git-friendly.
 - Status is a folder, not a field: `backlog` → `next` → `in progress` →

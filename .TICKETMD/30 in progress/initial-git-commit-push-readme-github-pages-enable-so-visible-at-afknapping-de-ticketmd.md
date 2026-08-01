@@ -23,6 +23,16 @@ is public/external and not something to run off a ticket alone.
 "local", per-machine) and scheduled_tasks.lock (a runtime lock file),
 neither belongs in version control. Also .DS_Store.
 
+Done so far (all local, nothing public yet): .gitignore, README.md,
+`git init`, and the initial commit (47 files - code + all real tickets,
+as agreed). Note: md-tickets-spec.md is missing from the project root -
+I didn't touch it, not sure if you deleted it or it's just misplaced,
+flagging in case it's not intentional.
+
+Stopping here for explicit confirmation before: creating the actual
+public GitHub repo, pushing, and enabling Pages with the custom domain -
+say go and I'll do it.
+
 ---
 id: 2fcbe5
 ready: true
