@@ -7,6 +7,8 @@ standard library.
 
 <img width="525" height="439" alt="image" src="https://github.com/user-attachments/assets/c520d2cf-e2f7-40dd-98c5-d48ed33f0c8e" />
 
+<img width="621" height="283" alt="image" src="https://github.com/user-attachments/assets/bb8b2972-c49f-4de5-a872-a8ddbc2a5edf" />
+
 
 Runs in any terminal, including a Claude Code terminal pane.
 
