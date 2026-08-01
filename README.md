@@ -5,6 +5,9 @@ Order is absolute, encoded by which folder it's in. The filesystem is
 the database — no server, no external dependencies beyond Ruby's
 standard library.
 
+<img width="525" height="439" alt="image" src="https://github.com/user-attachments/assets/c520d2cf-e2f7-40dd-98c5-d48ed33f0c8e" />
+
+
 Runs in any terminal, including a Claude Code terminal pane.
 
 ## Philosophy
