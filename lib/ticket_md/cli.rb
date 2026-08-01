@@ -18,6 +18,8 @@ module TicketMD
         setup
       when 'list'
         list
+      when 'demo'
+        demo
       when nil
         Interactive.new(@repo).run
       else
@@ -35,6 +37,16 @@ module TicketMD
         puts 'Already set up.'
       else
         created.each { |f| puts "Created #{f.dirname}/" }
+      end
+    end
+
+    # Undocumented on purpose - toggles between the real tickets and a
+    # seeded demo set (eg. for screenshots), stashing whichever isn't
+    # active.
+    def demo
+      case @repo.toggle_demo!
+      when :demo then puts 'Switched to demo data. Run `tmd demo` again to restore your tickets.'
+      when :restored then puts 'Restored your tickets.'
       end
     end
 

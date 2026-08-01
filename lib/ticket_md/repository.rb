@@ -1,3 +1,4 @@
+require 'fileutils'
 require_relative 'ticket'
 
 module TicketMD
@@ -21,6 +22,28 @@ module TicketMD
     # the root clean and makes it obvious what's "the ticket data" if the
     # project is committed to git.
     TICKETS_DIRNAME = '.TICKETMD'
+    DEMO_STASH_DIRNAME = '.TICKETMD.stash'
+
+    DEMO_TICKETS = {
+      'backlog' => [
+        'explore dark mode support',
+        'investigate flaky CI on windows runners'
+      ],
+      'next' => [
+        'add pagination to the search results endpoint',
+        'write onboarding docs for new contributors'
+      ],
+      'in progress' => [
+        'refactor auth middleware to use new session store (demo data - not a real task, do not act on this)'
+      ],
+      'testing' => [
+        'verify csv export handles unicode filenames'
+      ],
+      'done' => [
+        'fix off-by-one error in date range picker',
+        'upgrade postgres client library to v3'
+      ]
+    }.freeze
 
     def initialize(root)
       @root = root
@@ -165,7 +188,35 @@ module TicketMD
       created_folders
     end
 
+    # Toggle: first call stashes the real tickets and swaps in a seeded
+    # demo set; second call deletes the demo set and restores the stash.
+    # Returns :demo or :restored.
+    def toggle_demo!
+      stash_path = File.join(@root, DEMO_STASH_DIRNAME)
+
+      if Dir.exist?(stash_path)
+        FileUtils.rm_rf(tickets_root)
+        File.rename(stash_path, tickets_root)
+        :restored
+      else
+        File.rename(tickets_root, stash_path) if Dir.exist?(tickets_root)
+        Dir.mkdir(tickets_root)
+        seed_demo_data!
+        :demo
+      end
+    end
+
     private
+
+    def seed_demo_data!
+      DEFAULT_FOLDERS.each do |order, name|
+        dirname = format('%02d %s', order, name)
+        path = File.join(tickets_root, dirname)
+        Dir.mkdir(path)
+        folder = Folder.new(order, name, dirname, path)
+        DEMO_TICKETS.fetch(name, []).each { |title| create_ticket(title, folder) }
+      end
+    end
 
     def tickets_root
       File.join(@root, TICKETS_DIRNAME)
