@@ -7,8 +7,7 @@ standard library.
 
 CLI Output             |  Files and Folders
 :-------------------------:|:-------------------------:
-![](https://github.com/user-attachments/assets/c520d2cf-e2f7-40dd-98c5-d48ed33f0c8e) |  ![](https://github.com/user-attachments/assets/bb8b2972-c49f-4de5-a872-a8ddbc2a5edf)
-
+![](https://github.com/user-attachments/assets/62947371-debc-4547-a96d-bd24cbaca5c5) |  ![](https://github.com/user-attachments/assets/c308c5f0-07bc-4d84-906e-40361472d70e)
 
 Runs in any terminal, including a Claude Code terminal pane.
 
