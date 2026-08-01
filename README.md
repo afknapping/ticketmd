@@ -53,6 +53,10 @@ from — each project gets its own independent ticket set.
 Ticket numbers are always typeable as soon as they're unambiguous — no
 need to press Enter unless there's a genuine ambiguity to resolve.
 
+Each line also ends with the ticket's permanent id (eg. `#42`) — the
+position number on the left is just for quick selection and can shift
+as tickets move; the id at the right never changes.
+
 ## Ticket format
 
 A ticket is a plain markdown file. The first line is the title.
@@ -65,13 +69,13 @@ Some more detail about the bug, if useful.
 
 
 ---
-id: 8f3a2c
+id: 42
 ready: true
 ---
 ```
 
-- `id` is assigned automatically and never changes, even if the file
-  gets renamed.
+- `id` is a plain consecutive number, assigned automatically and never
+  changes, even if the file gets renamed.
 - `ready: true` shows a green checkmark — a signal that a ticket is
   clear enough to build.
 - `question: true` shows a yellow warning triangle — a signal that a

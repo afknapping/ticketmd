@@ -15,6 +15,12 @@ module TicketMD
     WATCH_INTERVAL = 1.5 # seconds - how often to notice changes made outside the app
     COMMANDS = { 'h' => 'help', 'l' => 'list', 'ld' => 'list done', 'n' => 'new', 'e' => 'edit', 'm' => 'move',
                  'd' => 'delete', 'snc' => 'sync reminders', 'q' => 'quit' }.freeze
+    # Not shown in the footer/help - `demo` still resolves via the same
+    # "accept as soon as distinct" dispatch as everything else (`d` alone
+    # stays ambiguous against it until `de` disambiguates), it's just
+    # left out of what gets displayed.
+    HIDDEN_COMMANDS = { 'demo' => 'toggle demo data' }.freeze
+    ALL_COMMANDS = COMMANDS.merge(HIDDEN_COMMANDS).freeze
 
     def initialize(repo)
       @repo = repo
@@ -36,7 +42,7 @@ module TicketMD
 
         if key.match?(/\A[0-9]\z/)
           select_ticket_by_number(key)
-        elsif COMMANDS.keys.any? { |cmd| cmd.start_with?(key) }
+        elsif ALL_COMMANDS.keys.any? { |cmd| cmd.start_with?(key) }
           dispatch_command(key)
         end
       end
@@ -136,7 +142,7 @@ module TicketMD
 
       buf = first_key
       loop do
-        candidates = COMMANDS.keys.select { |cmd| cmd.start_with?(buf) }
+        candidates = ALL_COMMANDS.keys.select { |cmd| cmd.start_with?(buf) }
         if candidates.length == 1
           flash_command(buf)
           return run_command(candidates.first)
@@ -151,10 +157,10 @@ module TicketMD
         end
 
         extended = buf + key
-        if COMMANDS.keys.any? { |cmd| cmd.start_with?(extended) }
+        if ALL_COMMANDS.keys.any? { |cmd| cmd.start_with?(extended) }
           buf = extended
         else
-          run_command(buf) if COMMANDS.key?(buf)
+          run_command(buf) if ALL_COMMANDS.key?(buf)
           enqueue_key(key)
           return
         end
@@ -181,6 +187,7 @@ module TicketMD
       when 'm' then move_ticket
       when 'd' then delete_ticket
       when 'snc' then sync_reminders
+      when 'demo' then toggle_demo
       end
     end
 
@@ -214,6 +221,15 @@ module TicketMD
       confirm_sync(list_name)
     rescue Reminders::Error => e
       show_message("Reminders error: #{e.message}")
+    end
+
+    # Hidden - toggles between the real tickets and a seeded demo set,
+    # stashing whichever isn't active. Same underlying swap as `tmd demo`.
+    def toggle_demo
+      case @repo.toggle_demo!
+      when :demo then show_message('Switched to demo data - `demo` again to restore your tickets')
+      when :restored then show_message('Restored your tickets')
+      end
     end
 
     # Shows the numbered (vertical) picker, or the new-list prompt for
@@ -407,6 +423,8 @@ module TicketMD
     end
 
     def blocking_key
+      return @pending_keys.shift unless @pending_keys.empty?
+
       $stdin.raw { |io| io.getc }
     end
 

@@ -2,7 +2,13 @@ remove blinking from in progress tickets
 
 
 
+
+
+
+
+
+
 ---
-id: 6da0d6
+id: 24
 ready: true
 ---

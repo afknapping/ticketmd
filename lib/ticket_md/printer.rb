@@ -8,6 +8,7 @@ module TicketMD
     RESET = "\e[0m"
     ANSI_RE = /\e\[[0-9;]*m/.freeze
     ELLIPSIS = '…'
+    ID_GAP = 3 # spaces guaranteed between a truncated title and its trailing ticket id
 
     # Numbering is always global (Repository#numbered_entries covers every
     # folder) so a ticket's number never changes with what's on screen.
@@ -31,7 +32,8 @@ module TicketMD
             lines << '  (empty)'
           else
             folder_entries.each do |e|
-              lines << format('  %02d %s%s%s%s', e.index, mark_for(e.ticket), BOLD, e.ticket.title, RESET)
+              body = format('  %02d %s%s%s%s', e.index, mark_for(e.ticket), BOLD, e.ticket.title, RESET)
+              lines << ticket_line(body, e.ticket.id, width)
             end
           end
         end
@@ -39,6 +41,19 @@ module TicketMD
       end
       lines = lines.map { |line| truncate(line, width) } if width
       lines.join("\n")
+    end
+
+    # Appends the ticket id at the end of the line, hashbang-style
+    # (`#42`). When the line is too long for the terminal, the title is
+    # truncated instead of the id, always leaving ID_GAP empty spaces
+    # before it so the id stays legible and separated from the ellipsis.
+    def self.ticket_line(body, id, width)
+      suffix = "##{id}"
+      full = "#{body} #{suffix}"
+      return full unless width && width.positive? && visible_length(full) > width
+
+      budget = [width - ID_GAP - suffix.length, 0].max
+      "#{truncate(body, budget)}#{' ' * ID_GAP}#{suffix}"
     end
 
     def self.mark_for(ticket)

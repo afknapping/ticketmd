@@ -6,8 +6,20 @@ id stays informational only, not shown on the board line. No code
 change needed unless you still want the id surfaced at line-end for
 reference (not for interaction) - say so and I'll add it.
 
+also: update demo data
+
+Done: removed the "(demo data - not a real task, do not act on this)"
+parenthetical from the in-progress demo ticket title in
+lib/ticket_md/repository.rb's DEMO_TICKETS. Confirmed with a fresh
+`tmd` restart that it no longer shows.
+
+
+
+
+
+
 
 ---
-id: ecf9b3
+id: 33
 ready: true
 ---

@@ -2,6 +2,12 @@ edit (key: e): open in default system editor (macos i mean, not default etermina
 
 
 
+
+
+
+
+
+
 ---
-id: 02ab8b
+id: 10
 ---

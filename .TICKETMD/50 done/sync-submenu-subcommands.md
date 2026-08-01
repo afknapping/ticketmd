@@ -13,6 +13,12 @@ give list of reminder lists and new. overwrite tickets, make list vertical, not 
 after identifying a list, go to reminder list is connected
 
 
+
+
+
+
+
+
 ---
-id: f5341c
+id: 28
 ---

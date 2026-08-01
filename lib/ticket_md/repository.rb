@@ -17,6 +17,7 @@ module TicketMD
     SYSTEM_TRASH = File.expand_path('~/.Trash')
     LOCAL_TRASH_DIRNAME = '.TRASH'
     REMINDERS_LIST_CONFIG = '.reminders-list'
+    ID_COUNTER_FILENAME = '.id-counter'
     # All status folders and app-managed files live under this hidden
     # subfolder of the project root, rather than directly in it - keeps
     # the root clean and makes it obvious what's "the ticket data" if the
@@ -26,22 +27,29 @@ module TicketMD
 
     DEMO_TICKETS = {
       'backlog' => [
-        'explore dark mode support',
-        'investigate flaky CI on windows runners'
+        { title: 'explore dark mode support', question: true },
+        { title: 'investigate flaky CI on windows runners', ready: true },
+        'evaluate switching CI provider to cut build times',
+        'sketch out plugin API for custom themes'
       ],
       'next' => [
-        'add pagination to the search results endpoint',
-        'write onboarding docs for new contributors'
+        { title: 'add pagination to the search results endpoint', ready: true },
+        { title: 'write onboarding docs for new contributors', ready: true },
+        { title: 'add keyboard shortcut cheatsheet to onboarding', ready: true },
+        { title: 'set up error tracking for the api service', ready: true }
       ],
       'in progress' => [
-        'refactor auth middleware to use new session store (demo data - not a real task, do not act on this)'
+        { title: 'refactor auth middleware to use new session store', ready: true },
+        { title: 'migrate legacy config loader to the new settings module', ready: true }
       ],
       'testing' => [
-        'verify csv export handles unicode filenames'
+        { title: 'verify csv export handles unicode filenames', ready: true },
+        { title: 'load test the new caching layer', ready: true }
       ],
       'done' => [
-        'fix off-by-one error in date range picker',
-        'upgrade postgres client library to v3'
+        { title: 'fix off-by-one error in date range picker', ready: true },
+        { title: 'upgrade postgres client library to v3', ready: true },
+        { title: 'ship dark launch flag for the redesigned settings page', ready: true }
       ]
     }.freeze
 
@@ -73,7 +81,7 @@ module TicketMD
       folders.each { |folder| tickets_in(folder).each(&:rename_to_match_title!) }
 
       all = folders.flat_map { |folder| tickets_in(folder) }
-      all.each(&:ensure_id!)
+      all.each { |ticket| ticket.ensure_id! { next_ticket_id! } }
       merge_duplicate_ids!(all)
     end
 
@@ -208,18 +216,41 @@ module TicketMD
 
     private
 
+    # Random three-digit ids (not the usual sequential ones) so the demo
+    # board looks like a ticket system with real history behind it,
+    # rather than one that obviously just started at #1.
     def seed_demo_data!
+      random_ids = (100..999).to_a.sample(DEMO_TICKETS.values.sum(&:length)).each
+
       DEFAULT_FOLDERS.each do |order, name|
         dirname = format('%02d %s', order, name)
         path = File.join(tickets_root, dirname)
         Dir.mkdir(path)
         folder = Folder.new(order, name, dirname, path)
-        DEMO_TICKETS.fetch(name, []).each { |title| create_ticket(title, folder) }
+        DEMO_TICKETS.fetch(name, []).each do |entry|
+          title, flags = entry.is_a?(Hash) ? [entry[:title], entry] : [entry, {}]
+          ticket = create_ticket(title, folder)
+          fm = { 'id' => random_ids.next }
+          fm['ready'] = true if flags[:ready]
+          fm['question'] = true if flags[:question]
+          ticket.send(:write_frontmatter!, fm)
+        end
       end
     end
 
     def tickets_root
       File.join(@root, TICKETS_DIRNAME)
+    end
+
+    # Plain consecutive numbers, persisted alongside the tickets so ids
+    # stay stable and gap-free across runs (people expect #1, #2, #3...
+    # from other ticket systems, not random hex).
+    def next_ticket_id!
+      path = File.join(tickets_root, ID_COUNTER_FILENAME)
+      current = File.exist?(path) ? File.read(path).strip.to_i : 0
+      next_id = current + 1
+      File.write(path, "#{next_id}\n")
+      next_id
     end
 
     # When two tickets share an id, one is a stale resurrection - keep

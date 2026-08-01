@@ -7,6 +7,12 @@ to normal) instead of waiting to disambiguate against `lr`. Verified a
 single `l` press now returns to the default board right away.
 
 
+
+
+
+
+
+
 ---
-id: 13b0fe
+id: 25
 ---

@@ -1,5 +1,4 @@
 require 'yaml'
-require 'securerandom'
 require_relative 'slug'
 
 module TicketMD
@@ -33,14 +32,16 @@ module TicketMD
     end
 
     # Generates and persists a stable id if this ticket doesn't have one
-    # yet. Lets reconcile! recognize a stale file resurrected by an
-    # external editor (still holding an old, since-renamed path) as a
-    # duplicate of the same ticket rather than a brand new one.
+    # yet (or has a legacy non-numeric one - ids are meant to be plain
+    # consecutive numbers, not hex, so those get migrated in place).
+    # Lets reconcile! recognize a stale file resurrected by an external
+    # editor (still holding an old, since-renamed path) as a duplicate
+    # of the same ticket rather than a brand new one.
     def ensure_id!
       fm = frontmatter
-      return fm['id'] if fm['id']
+      return fm['id'] if numeric_id?(fm['id'])
 
-      new_id = SecureRandom.hex(3)
+      new_id = yield
       write_frontmatter!(fm.merge('id' => new_id))
       new_id
     end
@@ -81,6 +82,14 @@ module TicketMD
     end
 
     private
+
+    def numeric_id?(value)
+      case value
+      when Integer then true
+      when String then value.match?(/\A\d+\z/)
+      else false
+      end
+    end
 
     # Metadata lives as "backmatter": a ---/--- YAML block at the END of
     # the file, not the top. Any blank lines before it are just visual
