@@ -29,9 +29,13 @@ as agreed). Note: md-tickets-spec.md is missing from the project root -
 I didn't touch it, not sure if you deleted it or it's just misplaced,
 flagging in case it's not intentional.
 
-Stopping here for explicit confirmation before: creating the actual
-public GitHub repo, pushing, and enabling Pages with the custom domain -
-say go and I'll do it.
+Done - confirmed and published: public repo created at
+github.com/afknapping/ticketmd, pushed (via HTTPS + gh's credential
+helper, since SSH push wasn't set up on this machine), and GitHub Pages
+enabled. No custom domain needed on this specific repo - it inherited
+the account-level domain setup, GitHub's own API response confirmed
+the live URL as http://afknapping.de/ticketmd/, matching the target
+exactly. May take a few minutes to actually build and go live.
 
 ---
 id: 2fcbe5
