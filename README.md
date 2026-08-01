@@ -5,6 +5,10 @@ Order is absolute, encoded by which folder it's in. The filesystem is
 the database — no server, no external dependencies beyond Ruby's
 standard library.
 
+CLI Output             |  Files and Folders
+:-------------------------:|:-------------------------:
+![](https://github.com/user-attachments/assets/62947371-debc-4547-a96d-bd24cbaca5c5) |  ![](https://github.com/user-attachments/assets/c308c5f0-07bc-4d84-906e-40361472d70e)
+
 Runs in any terminal, including a Claude Code terminal pane.
 
 ## Philosophy
