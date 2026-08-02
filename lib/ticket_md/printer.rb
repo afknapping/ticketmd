@@ -9,6 +9,10 @@ module TicketMD
     ANSI_RE = /\e\[[0-9;]*m/.freeze
     ELLIPSIS = '…'
     ID_GAP = 3 # spaces guaranteed between a truncated title and its trailing ticket id
+    # Folders collapsed to just a count in the default view - shared with
+    # Interactive so digit-entry ambiguity checks agree with what's
+    # actually visible on screen (see Interactive#visible_ticket_numbers).
+    SUMMARIZED_FOLDERS = ['done'].freeze
 
     # Numbering is always global (Repository#numbered_entries covers every
     # folder) so a ticket's number never changes with what's on screen.
@@ -16,7 +20,7 @@ module TicketMD
     # used for the done-only exclusive view. `summarize` folders (eg.
     # "done" in the default view) show just a count instead of the
     # full list, to keep finished work from crowding out active work.
-    def self.board(repo, width: terminal_width, only: nil, summarize: ['done'])
+    def self.board(repo, width: terminal_width, only: nil, summarize: SUMMARIZED_FOLDERS)
       entries = repo.numbered_entries
       lines = []
       visible_folders = only ? repo.folders.select { |f| only.include?(f.name) } : repo.folders
@@ -32,8 +36,15 @@ module TicketMD
             lines << '  (empty)'
           else
             folder_entries.each do |e|
-              body = format('  %02d %s%s%s%s', e.index, mark_for(e.ticket), BOLD, e.ticket.title, RESET)
-              lines << ticket_line(body, e.ticket.id, width)
+              # "done" entries aren't number-selectable (no m/d/e/i/o
+              # interaction), so they lead with their id instead of a
+              # position number, and skip the trailing-id treatment.
+              if folder.name == 'done'
+                lines << format('  #%d %s%s%s%s', e.ticket.id, mark_for(e.ticket), BOLD, e.ticket.title, RESET)
+              else
+                body = format('  %02d %s%s%s%s', e.index, mark_for(e.ticket), BOLD, e.ticket.title, RESET)
+                lines << ticket_line(body, e.ticket.id, width)
+              end
             end
           end
         end

@@ -46,14 +46,17 @@ module TicketMD
       new_id
     end
 
-    # Renames the file on disk to match the slug of its first line,
-    # keeping filenames and content in sync (§ "rename file by first
-    # line of ticket in-lower-case-dash-style").
+    # Renames the file on disk to match the slug of its first line, with
+    # the ticket's id appended at the end (keeps filenames and content
+    # in sync, and lets the id be spotted straight from `ls`/git status
+    # without opening the file). Reconcile! assigns ids before calling
+    # this, so `id` is always set here except for the empty-slug bailout
+    # below, which skips renaming entirely.
     def rename_to_match_title!
       slug = Slug.call(title)
       return self if slug.empty?
 
-      expected = "#{slug}.md"
+      expected = "#{slug}-#{id}.md"
       return self if expected == filename
 
       dir = File.dirname(path)

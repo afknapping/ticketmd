@@ -1,6 +1,7 @@
 require 'io/console'
 require_relative 'printer'
 require_relative 'reminders'
+require_relative 'github'
 
 module TicketMD
   class Interactive
@@ -13,8 +14,8 @@ module TicketMD
     MESSAGE_TTL = 2 # seconds
     FLASH_DELAY = 0.3 # seconds - long enough to actually see a keypress land
     WATCH_INTERVAL = 1.5 # seconds - how often to notice changes made outside the app
-    COMMANDS = { 'h' => 'help', 'l' => 'list', 'ld' => 'list done', 'n' => 'new', 'e' => 'edit', 'm' => 'move',
-                 'd' => 'delete', 'snc' => 'sync reminders', 'q' => 'quit' }.freeze
+    COMMANDS = { 'h' => 'help', 'l' => 'list', 'ld' => 'list done', 'n' => 'new', 'e' => 'edit', 'o' => 'open',
+                 'm' => 'move', 'd' => 'delete', 'i' => 'image', 'snc' => 'sync reminders', 'q' => 'quit' }.freeze
     # Not shown in the footer/help - `demo` still resolves via the same
     # "accept as soon as distinct" dispatch as everything else (`d` alone
     # stays ambiguous against it until `de` disambiguates), it's just
@@ -31,12 +32,21 @@ module TicketMD
     end
 
     def run
+      # Idempotent - a no-op once folders already exist, so this just
+      # scaffolds the default structure the first time `tmd` is run
+      # somewhere new instead of telling the user to run `tmd setup`.
+      @repo.setup!
       loop do
         @repo.reconcile!
         draw
         key = read_key(select_timeout)
         expire_message!
         next if key == :timeout
+
+        if @view == :help
+          @view = :default
+          next
+        end
 
         break if QUIT_KEYS.include?(key)
 
@@ -60,15 +70,17 @@ module TicketMD
     # right instead of returning to column 0.
     def draw
       board =
-        if @repo.folders.empty?
-          'No ticket folders found. Run `tmd setup` first.'
+        if @view == :help
+          help_board
         elsif @view == :done_only
-          Printer.board(@repo, only: ['done'], summarize: [])
+          Printer.board(@repo, only: Printer::SUMMARIZED_FOLDERS, summarize: [])
         else
           Printer.board(@repo)
         end
 
-      frame = [title_banner, '', board, '', @message.to_s, '', "#{COMMANDS.keys.join(' ')} or ticket #"].join("\n")
+      divider = '=' * (Printer.terminal_width || 40)
+      frame = [title_banner, '', board, '', divider, '', "#{COMMANDS.keys.join(' ')} or ticket #", '',
+                @message.to_s].join("\n")
       print CLEAR
       print frame.gsub("\n", "\r\n")
       $stdout.flush
@@ -183,18 +195,25 @@ module TicketMD
       when 'l' then handle_l
       when 'ld' then handle_ld
       when 'n' then new_ticket
-      when 'e' then edit_ticket
+      when 'e', 'o' then edit_ticket
       when 'm' then move_ticket
       when 'd' then delete_ticket
+      when 'i' then image_ticket
       when 'snc' then sync_reminders
       when 'demo' then toggle_demo
       end
     end
 
-    # Plain `l`: refresh, or while showing the done-only view, return
-    # to the normal board.
+    # Plain `l`: pull + refresh, or while showing the done-only view,
+    # return to the normal board. Pull failures (offline, conflicts,
+    # no remote) don't block the refresh - just surface as the message.
     def handle_l
       @view = :default if @view == :done_only
+      begin
+        Github.pull!(@repo.root)
+      rescue Github::Error => e
+        return show_message("Pull failed: #{e.message}")
+      end
       refresh
     end
 
@@ -248,7 +267,7 @@ module TicketMD
         Reminders.create_list(name)
         name
       elsif key.match?(/\A[0-9]\z/)
-        buf = read_digits(key, lists.length, label: 'List #')
+        buf = read_digits(key, (1..lists.length).to_a, label: 'List #')
         return nil unless buf
 
         idx = buf.to_i
@@ -326,19 +345,36 @@ module TicketMD
       open_in_editor(ticket) if ticket
     end
 
+    # Commits+pushes just the selected ticket file, then opens its
+    # GitHub edit view in the browser - dropping an image there via
+    # cmd-v gets it uploaded and embedded without handling files
+    # locally at all.
+    def image_ticket
+      ticket, = prompt_ticket_number
+      return unless ticket
+
+      show_message('Committing and pushing...')
+      draw
+      Github.commit_and_push!(ticket.path, "Update ticket: #{ticket.title}", @repo.root)
+      system('open', Github.edit_url_for(ticket.path, @repo.root), out: File::NULL, err: File::NULL)
+      show_message("Opened #{ticket.filename} on GitHub - paste your image there")
+    rescue Github::Error => e
+      show_message("GitHub error: #{e.message}")
+    end
+
     # Lets a ticket be picked first (type digits), then acted on with a
     # command letter — the reverse of the usual letter-then-number order.
     def select_ticket_by_number(first_digit)
       ticket, num = resolve_ticket_number(first_digit)
       return unless ticket
 
-      show_message("##{num} #{ticket.title} - m=move d=delete e=edit")
+      show_message("##{num} #{ticket.title} - m=move d=delete e/o=edit")
       draw
       key = blocking_key
       case key
       when 'm' then move_ticket_action(ticket, num)
       when 'd' then delete_ticket_action(ticket)
-      when 'e' then open_in_editor(ticket)
+      when 'e', 'o' then open_in_editor(ticket)
       else show_message('Cancelled') if CANCEL_KEYS.include?(key)
       end
     end
@@ -358,7 +394,7 @@ module TicketMD
     end
 
     def resolve_ticket_number(first_digit)
-      buf = read_digits(first_digit, @repo.numbered_entries.length, label: 'Ticket #')
+      buf = read_digits(first_digit, visible_ticket_numbers, label: 'Ticket #')
       return [nil, nil] unless buf
 
       ticket = @repo.ticket_by_index(buf.to_i)
@@ -366,18 +402,30 @@ module TicketMD
       [ticket, buf]
     end
 
+    # Numbers actually selectable right now. "done" never shows a
+    # position number at all (Printer leads done entries with their id
+    # instead, not number-interactive - see #43) and every other
+    # summarized folder only hides its numbers while collapsed. Without
+    # this, typing a digit stays ambiguous against numbers the user
+    # can't even see or type toward (eg. "1" waiting on invisible
+    # tickets 10-19 in a folder that's summarized or is "done").
+    def visible_ticket_numbers
+      hidden = (@view == :done_only ? [] : Printer::SUMMARIZED_FOLDERS) + ['done']
+      @repo.numbered_entries.reject { |e| hidden.include?(e.folder.name) }.map(&:index)
+    end
+
     # Reads digits one at a time, accepting as soon as the typed prefix
-    # distinctly identifies exactly one option in 1..count (or is
+    # distinctly identifies exactly one option in `valid_numbers` (or is
     # provably out of range) - Enter is never required, but forces early
     # submission if pressed. Used for both ticket numbers and picking from
     # a numbered list (eg. Reminders lists in `snc`) - multi-digit choices
     # (10+) must be typeable, not just the first digit, or a mistyped
     # single digit could pick the wrong (possibly destructive) option.
     # Returns the raw digit string, or nil if cancelled.
-    def read_digits(first_digit, count, label:)
+    def read_digits(first_digit, valid_numbers, label:)
       buf = first_digit
       loop do
-        matches = (1..count).select { |i| i.to_s.start_with?(buf) }
+        matches = valid_numbers.select { |i| i.to_s.start_with?(buf) }
         break if matches.length <= 1
 
         @message = "#{label}: #{buf}"
@@ -432,12 +480,28 @@ module TicketMD
       show_message('Up to date')
     end
 
+    # Replaces the board with a vertical command list rather than
+    # appending a single-line message - a joined "h=help l=list ..."
+    # string got hard to scan once there were this many commands. Any
+    # keypress dismisses it back to the normal board (see `run`).
     def show_help
-      show_message(COMMANDS.map { |letter, name| "#{letter}=#{name}" }.join('  '))
+      @view = :help
     end
 
+    def help_board
+      COMMANDS.map { |letter, name| "  #{letter} - #{name}" }.join("\n")
+    end
+
+    # Shows each folder's shortest unique prefix rather than always just
+    # the first letter, so eg. "refine" and "ready" (both starting with
+    # "re") show as "ref"/"rea" instead of colliding on plain "r" -
+    # matching what folder_matching itself actually requires to resolve.
     def folder_hint
-      @repo.folders.map { |f| "#{f.name[0]}=#{f.name}" }.join(' ')
+      names = @repo.folders.map(&:name)
+      names.map do |name|
+        len = (1..name.length).find { |n| names.count { |o| o.start_with?(name[0...n]) } == 1 } || name.length
+        "#{name[0...len]}=#{name}"
+      end.join(' ')
     end
 
     # Raw per-key text input (not cooked-mode `gets`) so Escape can be

@@ -7,11 +7,12 @@ module TicketMD
     Entry = Struct.new(:index, :folder, :ticket)
 
     DEFAULT_FOLDERS = [
-      [10, 'backlog'],
-      [20, 'next'],
-      [30, 'in progress'],
-      [40, 'testing'],
-      [50, 'done']
+      [10, 'new'],
+      [20, 'refine'],
+      [30, 'ready'],
+      [40, 'in progress'],
+      [50, 'testing'],
+      [60, 'done']
     ].freeze
 
     SYSTEM_TRASH = File.expand_path('~/.Trash')
@@ -26,13 +27,17 @@ module TicketMD
     DEMO_STASH_DIRNAME = '.TICKETMD.stash'
 
     DEMO_TICKETS = {
-      'backlog' => [
+      'new' => [
+        'try out a rough idea for keyboard-only navigation',
+        'jot down thoughts on multi-project dashboards'
+      ],
+      'refine' => [
         { title: 'explore dark mode support', question: true },
         { title: 'investigate flaky CI on windows runners', ready: true },
         'evaluate switching CI provider to cut build times',
         'sketch out plugin API for custom themes'
       ],
-      'next' => [
+      'ready' => [
         { title: 'add pagination to the search results endpoint', ready: true },
         { title: 'write onboarding docs for new contributors', ready: true },
         { title: 'add keyboard shortcut cheatsheet to onboarding', ready: true },
@@ -53,6 +58,8 @@ module TicketMD
       ]
     }.freeze
 
+    attr_reader :root
+
     def initialize(root)
       @root = root
     end
@@ -65,11 +72,16 @@ module TicketMD
         .sort_by(&:order)
     end
 
+    # Alphabetical everywhere except "done", which sorts by last
+    # modified (most recent first) so the ticket you just finished
+    # shows up at the top instead of wherever its filename happens to
+    # alphabetize to.
     def tickets_in(folder)
-      Dir.children(folder.path)
+      paths = Dir.children(folder.path)
         .select { |f| f.end_with?('.md') && !f.start_with?('.') }
-        .sort
-        .map { |f| Ticket.new(File.join(folder.path, f)) }
+        .map { |f| File.join(folder.path, f) }
+      paths = folder.name == 'done' ? paths.sort_by { |p| -File.mtime(p).to_f } : paths.sort
+      paths.map { |p| Ticket.new(p) }
     end
 
     # Reconciles every ticket's filename with its current content so the
@@ -78,11 +90,11 @@ module TicketMD
     # id reveals (eg. a stale file resurrected by an external editor still
     # holding an old, since-renamed path).
     def reconcile!
-      folders.each { |folder| tickets_in(folder).each(&:rename_to_match_title!) }
-
       all = folders.flat_map { |folder| tickets_in(folder) }
       all.each { |ticket| ticket.ensure_id! { next_ticket_id! } }
       merge_duplicate_ids!(all)
+
+      folders.each { |folder| tickets_in(folder).each(&:rename_to_match_title!) }
     end
 
     def default_folder
@@ -120,8 +132,10 @@ module TicketMD
       ordered[idx + 1]
     end
 
-    # Matches a folder by prefix of its name, case-insensitive (eg. "b" ->
-    # backlog). Ambiguous or unmatched input returns nil.
+    # Matches a folder by prefix of its name, case-insensitive (eg. "d" ->
+    # done). Ambiguous or unmatched input returns nil - "refine" and
+    # "ready" share the prefix "re", so "r"/"re" won't resolve; "ref" or
+    # "rea" will.
     def folder_matching(input)
       needle = input.downcase
       matches = folders.select { |f| f.name.downcase.start_with?(needle) }
@@ -187,10 +201,10 @@ module TicketMD
         created_folders << folder_from_dirname(dirname)
       end
 
-      backlog = folders.find { |f| f.name == DEFAULT_FOLDERS.first.last } || created_folders.first
-      if backlog && tickets_in(backlog).empty?
-        create_ticket('example: edit or delete this ticket', backlog)
-        create_ticket('drag me to next when ready', backlog)
+      first_folder = folders.find { |f| f.name == DEFAULT_FOLDERS.first.last } || created_folders.first
+      if first_folder && tickets_in(first_folder).empty?
+        create_ticket('example: edit or delete this ticket', first_folder)
+        create_ticket('drag me to refine when ready', first_folder)
       end
 
       created_folders
