@@ -2,8 +2,7 @@
 
 A plain-markdown ticket system for the terminal. A ticket is a file.
 Order is absolute, encoded by which folder it's in. The filesystem is
-the database — no server, no external dependencies beyond Ruby's
-standard library.
+the database: no server, no dependencies beyond Ruby.
 
 
 Runs in any terminal, including a Claude Code terminal pane.
