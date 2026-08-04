@@ -7,14 +7,7 @@ on:
 
 jobs:
   build-macos:
-    strategy:
-      matrix:
-        include:
-          - runner: macos-14
-            arch: arm64
-          - runner: macos-13
-            arch: x86_64
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
@@ -37,12 +30,12 @@ jobs:
           tebako press \
             --root=. \
             --entry-point=tmd \
-            --output=tmd-macos-${{ matrix.arch }}
+            --output=tmd-macos-arm64
 
       - uses: actions/upload-artifact@v4
         with:
-          name: tmd-macos-${{ matrix.arch }}
-          path: tmd-macos-${{ matrix.arch }}
+          name: tmd-macos-arm64
+          path: tmd-macos-arm64
           if-no-files-found: error
 
   build-linux:
