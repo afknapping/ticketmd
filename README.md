@@ -109,12 +109,17 @@ No Ruby install needed — grab a standalone binary from the
 `main`:
 
 ```bash
-curl -L -o tmd https://github.com/afknapping/ticketmd/releases/download/latest/tmd-macos-arm64
-chmod +x tmd
-./tmd
+mkdir -p ~/.local/bin
+curl -L -o ~/.local/bin/tmd https://github.com/afknapping/ticketmd/releases/download/latest/tmd-macos-arm64
+chmod +x ~/.local/bin/tmd
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && echo "Added ~/.local/bin to PATH - restart your terminal (or run: source ~/.zshrc)" ;;
+esac
 ```
 
-(swap `tmd-macos-arm64` for `tmd-linux-x86_64` on Linux)
+(swap `tmd-macos-arm64` for `tmd-linux-x86_64` on Linux; swap `~/.zshrc`
+for `~/.bashrc` if you're not on zsh)
 
 Or, if you already have Ruby, install it as a gem instead:
 
