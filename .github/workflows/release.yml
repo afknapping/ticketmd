@@ -1,0 +1,85 @@
+name: Release standalone binaries
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build-macos:
+    strategy:
+      matrix:
+        include:
+          - runner: macos-14
+            arch: arm64
+          - runner: macos-13
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Install tebako build prerequisites
+        run: |
+          brew install bash gnu-sed pstree
+
+      - name: Install tebako
+        run: gem install tebako
+
+      - name: Press binary
+        run: |
+          tebako press \
+            --root=. \
+            --entry-point=bin/tmd \
+            --output=tmd-macos-${{ matrix.arch }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tmd-macos-${{ matrix.arch }}
+          path: tmd-macos-${{ matrix.arch }}
+          if-no-files-found: error
+
+  build-linux:
+    runs-on: ubuntu-latest
+    container: ghcr.io/tamatebako/tebako-ubuntu-20.04:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Press binary
+        run: |
+          tebako press \
+            --root=. \
+            --entry-point=bin/tmd \
+            --output=tmd-linux-x86_64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tmd-linux-x86_64
+          path: tmd-linux-x86_64
+          if-no-files-found: error
+
+  release:
+    needs: [build-macos, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Roll the "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          chmod +x dist/tmd-*
+          gh release delete latest --yes --cleanup-tag --repo "${{ github.repository }}" || true
+          gh release create latest dist/tmd-* \
+            --repo "${{ github.repository }}" \
+            --title "Latest build ($(git rev-parse --short HEAD))" \
+            --notes "Automatically built standalone binaries from the latest commit on main ($(git rev-parse HEAD)). No Ruby install required - download the binary for your platform, \`chmod +x\`, and run." \
+            --prerelease
