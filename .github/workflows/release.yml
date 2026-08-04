@@ -29,6 +29,9 @@ jobs:
       - name: Install tebako
         run: gem install tebako
 
+      - name: Set up tebako packaging environment
+        run: tebako setup
+
       - name: Press binary
         run: |
           tebako press \
@@ -47,6 +50,12 @@ jobs:
     container: ghcr.io/tamatebako/tebako-ubuntu-20.04:latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install tebako
+        run: gem install tebako
+
+      - name: Set up tebako packaging environment
+        run: tebako setup
 
       - name: Press binary
         run: |
