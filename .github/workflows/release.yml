@@ -24,7 +24,7 @@ jobs:
 
       - name: Install tebako build prerequisites
         run: |
-          brew install bash gnu-sed pstree
+          brew install bash gnu-sed pstree openssl@3 zlib libyaml gdbm ncurses
 
       - name: Install tebako
         run: gem install tebako
@@ -36,7 +36,7 @@ jobs:
         run: |
           tebako press \
             --root=. \
-            --entry-point=bin/tmd \
+            --entry-point=tmd \
             --output=tmd-macos-${{ matrix.arch }}
 
       - uses: actions/upload-artifact@v4
@@ -61,7 +61,7 @@ jobs:
         run: |
           tebako press \
             --root=. \
-            --entry-point=bin/tmd \
+            --entry-point=tmd \
             --output=tmd-linux-x86_64
 
       - uses: actions/upload-artifact@v4
