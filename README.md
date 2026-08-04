@@ -103,6 +103,21 @@ changes — so it picks the loop up automatically in any project using
 
 ## Install
 
+No Ruby install needed — grab a standalone binary from the
+[latest release](https://github.com/afknapping/ticketmd/releases/tag/latest)
+(macOS arm64 or Linux x86_64), automatically rebuilt on every push to
+`main`:
+
+```bash
+curl -L -o tmd https://github.com/afknapping/ticketmd/releases/download/latest/tmd-macos-arm64
+chmod +x tmd
+./tmd
+```
+
+(swap `tmd-macos-arm64` for `tmd-linux-x86_64` on Linux)
+
+Or, if you already have Ruby, install it as a gem instead:
+
 ```bash
 gem build ticket_md.gemspec
 gem install ./ticket_md-*.gem
